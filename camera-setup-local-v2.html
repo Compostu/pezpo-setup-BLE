@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#ffffff">
+<title>PEZPO — Installation locale v2</title>
+<style>
+:root{--forest:#123b29;--muted:#657169;--line:#d9e2dc}
+*{box-sizing:border-box}
+body{margin:0;font-family:system-ui,-apple-system,"Segoe UI",sans-serif;background:#f5f7f4;color:#152019}
+main{max-width:560px;margin:auto;padding:24px 18px 40px}
+.brand{font-weight:900;color:var(--forest);font-size:22px;letter-spacing:1px}
+.card{background:#fff;border:1px solid var(--line);border-radius:22px;padding:20px;margin-top:24px}
+label{display:block;font-weight:800;font-size:14px;margin:12px 0 7px}
+input{width:100%;font:inherit;padding:15px;border:1px solid #cbd6ce;border-radius:14px;background:#fafbfa}
+button{width:100%;min-height:54px;border:0;border-radius:15px;font:inherit;font-weight:800;cursor:pointer}
+.primary{background:var(--forest);color:#fff;margin-top:18px}
+.secondary{background:#fff;color:var(--forest);border:1px solid var(--line);margin-top:10px}
+.hidden{display:none!important}
+p{color:var(--muted);line-height:1.45}
+#scanView{
+  position:fixed;inset:0;z-index:1000;background:#fff;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding:14px;
+}
+#scanView .hint{font-weight:900;text-align:center;margin-bottom:10px;color:#111}
+#qrWrap{background:#fff;padding:22px;display:flex;align-items:center;justify-content:center}
+#qr img,#qr canvas{display:block;image-rendering:pixelated}
+#counter{margin-top:12px;font-weight:800;color:#111}
+#exitScan{margin-top:12px;max-width:360px}
+</style>
+</head>
+<body>
+<main>
+  <div class="brand">PEZPO</div>
+  <div class="card">
+    <h1>Installer votre Hub</h1>
+    <p>Entrez le Wi‑Fi puis présentez le QR plein écran devant la caméra PEZPO.</p>
+
+    <label for="ssid">Nom du Wi‑Fi</label>
+    <input id="ssid" autocomplete="off" placeholder="Ex. Livebox-XXXX">
+
+    <label for="psk">Mot de passe Wi‑Fi</label>
+    <input id="psk" type="password" autocomplete="off" placeholder="Mot de passe">
+
+    <button id="generate" class="primary">GÉNÉRER LE QR</button>
+  </div>
+</main>
+
+<section id="scanView" class="hidden">
+  <div class="hint">Placez ce QR face à la caméra PEZPO</div>
+  <div id="qrWrap"><div id="qr"></div></div>
+  <div id="counter">Gardez le téléphone immobile 10 secondes</div>
+  <button id="exitScan" class="secondary">REVENIR</button>
+</section>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+const params = new URLSearchParams(location.search);
+const HUB_ID = params.get("hub") || "PZ-HUB-002";
+const TOKEN = params.get("token") || "";
+const enc = new TextEncoder();
+const $ = id => document.getElementById(id);
+let wakeLock = null;
+
+function b64url(bytes){
+  let s="";
+  for(const b of bytes) s += String.fromCharCode(b);
+  return btoa(s).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
+}
+async function deriveKey(){
+  const digest = await crypto.subtle.digest("SHA-256", enc.encode(TOKEN + "|" + HUB_ID));
+  return crypto.subtle.importKey("raw", digest, {name:"AES-GCM"}, false, ["encrypt"]);
+}
+async function makeCompactPayload(ssid, psk){
+  if(!TOKEN) throw new Error("Code d'installation absent. Ouvrez cette page depuis le QR physique PEZPO.");
+
+  const s = enc.encode(ssid);
+  const p = enc.encode(psk);
+  if(s.length < 1 || s.length > 32) throw new Error("Nom Wi‑Fi invalide.");
+  if(p.length > 128) throw new Error("Mot de passe trop long.");
+
+  // Compact binary plaintext:
+  // [1 byte SSID length][SSID bytes][PSK bytes]
+  const plain = new Uint8Array(1 + s.length + p.length);
+  plain[0] = s.length;
+  plain.set(s,1);
+  plain.set(p,1+s.length);
+
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const key = await deriveKey();
+  const cipher = new Uint8Array(await crypto.subtle.encrypt({name:"AES-GCM",iv}, key, plain));
+
+  // One compact blob: [12-byte IV][ciphertext+GCM tag]
+  const blob = new Uint8Array(iv.length + cipher.length);
+  blob.set(iv,0);
+  blob.set(cipher,iv.length);
+
+  return "P2:" + b64url(blob);
+}
+async function enterFullscreen(){
+  try{
+    if(document.documentElement.requestFullscreen) await document.documentElement.requestFullscreen();
+  }catch(e){}
+  try{
+    if("wakeLock" in navigator) wakeLock = await navigator.wakeLock.request("screen");
+  }catch(e){}
+}
+$("generate").onclick = async () => {
+  const ssid = $("ssid").value.trim();
+  const psk = $("psk").value;
+  if(!ssid || !psk){ alert("Entrez le nom du Wi‑Fi et son mot de passe."); return; }
+
+  try{
+    const data = await makeCompactPayload(ssid,psk);
+
+    const size = Math.max(300, Math.min(Math.floor(window.innerWidth * 0.82), 470));
+    $("qr").innerHTML = "";
+    new QRCode($("qr"),{
+      text:data,
+      width:size,
+      height:size,
+      correctLevel:QRCode.CorrectLevel.L
+    });
+
+    $("psk").value = "";
+    $("scanView").classList.remove("hidden");
+    await enterFullscreen();
+
+    let n = 10;
+    $("counter").textContent = `Gardez le téléphone immobile ${n} secondes`;
+    const timer = setInterval(()=>{
+      n--;
+      if(n>0) $("counter").textContent = `Gardez le téléphone immobile ${n} secondes`;
+      else {
+        clearInterval(timer);
+        $("counter").textContent = "Vous pouvez maintenant vérifier la connexion.";
+      }
+    },1000);
+  }catch(e){ alert(e.message); }
+};
+$("exitScan").onclick = async () => {
+  $("scanView").classList.add("hidden");
+  try{ if(document.fullscreenElement) await document.exitFullscreen(); }catch(e){}
+  try{ if(wakeLock) await wakeLock.release(); }catch(e){}
+};
+</script>
+</body>
+</html>
