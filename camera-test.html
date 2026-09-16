@@ -1,214 +1,53 @@
 <!doctype html>
 <html lang="fr">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>PEZPO Camera Provisioning Test</title>
-
-  <style>
-    body{
-      font-family:system-ui,-apple-system,sans-serif;
-      background:#f5f7f4;
-      color:#16211a;
-      margin:0;
-    }
-
-    main{
-      max-width:520px;
-      margin:auto;
-      padding:30px 20px;
-    }
-
-    .brand{
-      color:#123b29;
-      font-size:22px;
-      font-weight:900;
-    }
-
-    .card{
-      background:white;
-      border:1px solid #dde5df;
-      border-radius:24px;
-      padding:22px;
-      margin-top:25px;
-    }
-
-    input{
-      width:100%;
-      box-sizing:border-box;
-      padding:15px;
-      margin:7px 0 15px;
-      border:1px solid #ccd6cf;
-      border-radius:14px;
-      font-size:16px;
-    }
-
-    button{
-      width:100%;
-      border:0;
-      border-radius:15px;
-      padding:16px;
-      background:#123b29;
-      color:white;
-      font-weight:800;
-      font-size:15px;
-    }
-
-    #qrbox{
-      display:none;
-      text-align:center;
-      margin-top:25px;
-    }
-
-    canvas{
-      max-width:100%;
-    }
-
-    .warning{
-      color:#8a5a00;
-      font-size:13px;
-      margin-top:15px;
-    }
-  </style>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>PEZPO - Test QR caméra</title>
+<style>
+body{font-family:system-ui;background:#f5f7f4;color:#16211a;margin:0}
+main{max-width:520px;margin:auto;padding:28px 20px}
+.card{background:#fff;border:1px solid #dde5df;border-radius:24px;padding:22px}
+input,button{width:100%;box-sizing:border-box;padding:15px;border-radius:14px;font:inherit;margin:7px 0 14px}
+input{border:1px solid #cbd7ce}
+button{border:0;background:#123b29;color:#fff;font-weight:800}
+#qrbox{display:none;text-align:center;margin-top:22px}
+#qr img{max-width:100%;height:auto}
+small{color:#8a5a00}
+</style>
 </head>
-
 <body>
-
 <main>
-
-  <div class="brand">PEZPO</div>
-
-  <h1>Test provisioning caméra</h1>
-
-  <p>
-    Génère un QR que le Hub PEZPO peut lire avec sa caméra.
-  </p>
-
-  <div class="card">
-
-    <label>Wi-Fi de test</label>
-
-    <input
-      id="ssid"
-      placeholder="TEST-WIFI"
-      value="TEST-WIFI">
-
-    <label>Mot de passe de test</label>
-
-    <input
-      id="password"
-      type="password"
-      placeholder="Mot de passe"
-      value="TEST123456">
-
-    <button id="generate">
-      GÉNÉRER LE QR PEZPO
-    </button>
-
-    <p class="warning">
-      Pour ce test, n'utilisez pas encore le vrai mot de passe Wi-Fi.
-    </p>
-
-    <div id="qrbox">
-
-      <h2>Présentez ce QR à PEZPO</h2>
-
-      <canvas id="qr"></canvas>
-
-      <p>
-        Placez l'écran environ 20 à 40 cm devant la caméra.
-      </p>
-
-    </div>
-
-  </div>
-
+<h2>PEZPO</h2>
+<h1>Test provisioning caméra</h1>
+<div class="card">
+<label>Wi‑Fi de test</label>
+<input id="ssid" value="TEST-WIFI">
+<label>Mot de passe de test</label>
+<input id="psk" type="password" value="TEST123456">
+<button id="go">GÉNÉRER LE QR PEZPO</button>
+<small>N'utilise pas encore ton vrai mot de passe Wi‑Fi.</small>
+<div id="qrbox"><h2>Présente ce QR à la caméra</h2><div id="qr"></div></div>
+</div>
 </main>
-
-<script type="module">
-
-import * as QRCode
-from "https://cdn.jsdelivr.net/npm/qrcode@1.5.4/+esm";
-
-
-function base64url(text){
-
-  const bytes =
-    new TextEncoder().encode(text);
-
-  let binary = "";
-
-  for(const b of bytes)
-    binary += String.fromCharCode(b);
-
-  return btoa(binary)
-    .replaceAll("+","-")
-    .replaceAll("/","_")
-    .replaceAll("=","");
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+function b64url(s){
+ const bytes=new TextEncoder().encode(s); let bin="";
+ for(const b of bytes) bin+=String.fromCharCode(b);
+ return btoa(bin).replace(/\+/g,"-").replace(/\//g,"_").replace(/=+$/,"");
 }
-
-
-document
-.getElementById("generate")
-.addEventListener("click", async () => {
-
-  const ssid =
-    document.getElementById("ssid").value.trim();
-
-  const psk =
-    document.getElementById("password").value;
-
-  if(!ssid || !psk){
-    alert("SSID et mot de passe nécessaires.");
-    return;
-  }
-
-  const random =
-    crypto.getRandomValues(
-      new Uint32Array(2)
-    );
-
-  const payload = {
-
-    v: 1,
-
-    hub: "PZ-HUB-002",
-
-    ssid: ssid,
-
-    psk: psk,
-
-    nonce:
-      random[0].toString(16) +
-      random[1].toString(16)
-
-  };
-
-  const data =
-    "PEZPO_WIFI1:" +
-    base64url(
-      JSON.stringify(payload)
-    );
-
-  const canvas =
-    document.getElementById("qr");
-
-  await QRCode.toCanvas(
-    canvas,
-    data,
-    {
-      width: 350,
-      margin: 2,
-      errorCorrectionLevel: "M"
-    }
-  );
-
-  document
-    .getElementById("qrbox")
-    .style.display = "block";
-});
-
+document.getElementById("go").onclick=()=>{
+ const ssid=document.getElementById("ssid").value.trim();
+ const psk=document.getElementById("psk").value;
+ if(!ssid||!psk){alert("SSID et mot de passe requis");return;}
+ const r=crypto.getRandomValues(new Uint32Array(2));
+ const payload={v:1,hub:"PZ-HUB-002",ssid,psk,nonce:r[0].toString(16)+r[1].toString(16)};
+ const data="PEZPO_WIFI1:"+b64url(JSON.stringify(payload));
+ const box=document.getElementById("qr"); box.innerHTML="";
+ new QRCode(box,{text:data,width:340,height:340,correctLevel:QRCode.CorrectLevel.M});
+ document.getElementById("qrbox").style.display="block";
+};
 </script>
-
 </body>
 </html>
