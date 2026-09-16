@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#123b29">
+  <title>PEZPO Setup</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="shell">
+    <header class="brand">
+      <div class="mark">P</div>
+      <div>PEZPO</div>
+    </header>
+
+    <section class="hero">
+      <div class="eyebrow">INSTALLATION</div>
+      <h1 id="title">Configurer votre Hub</h1>
+      <p id="subtitle">Connexion Bluetooth au Hub PEZPO.</p>
+    </section>
+
+    <section id="unsupportedCard" class="card hidden">
+      <h2>iPhone détecté</h2>
+      <p>Safari sur iPhone ne prend pas en charge Web Bluetooth. Cette même URL servira ensuite à ouvrir l’App Clip PEZPO.</p>
+    </section>
+
+    <section id="startCard" class="card">
+      <div class="hub-pill">
+        <span class="dot"></span>
+        <div>
+          <small>Hub à configurer</small>
+          <strong id="hubName">PEZPO-HUB</strong>
+        </div>
+      </div>
+      <button id="connectBtn" class="primary">CONNECTER À PEZPO</button>
+      <p class="hint">Android : Chrome ouvrira le sélecteur Bluetooth du téléphone.</p>
+    </section>
+
+    <section id="wifiCard" class="card hidden">
+      <div class="row">
+        <h2>Wi-Fi</h2>
+        <button id="rescanBtn" class="linkbtn">Actualiser</button>
+      </div>
+      <div id="scanState" class="status">Recherche des réseaux…</div>
+      <div id="networks" class="networks"></div>
+
+      <label for="password">Mot de passe Wi-Fi</label>
+      <input id="password" type="password" autocomplete="current-password" placeholder="Mot de passe">
+      <button id="wifiConnectBtn" class="primary" disabled>CONNECTER MON HUB</button>
+    </section>
+
+    <section id="successCard" class="card hidden center">
+      <div class="check">✓</div>
+      <h2>PEZPO est connecté</h2>
+      <p id="successText"></p>
+      <button id="framingBtn" class="primary">RÉGLER LA CAMÉRA</button>
+      <button id="galleryBtn" class="secondary">OUVRIR LA GALERIE</button>
+    </section>
+
+    <section id="errorCard" class="card hidden">
+      <h2>Connexion impossible</h2>
+      <p id="errorText"></p>
+      <button id="retryBtn" class="secondary">RÉESSAYER</button>
+    </section>
+
+    <footer>Bluetooth pour l’installation · Wi-Fi pour le cadrage et la galerie</footer>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>
