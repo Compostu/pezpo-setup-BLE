@@ -18,13 +18,24 @@ const dec = new TextDecoder();
 $("title").textContent = `Configurer ${expectedHubId}`;
 $("hubName").textContent = expectedBleName;
 
-let device, server, service, ssidChar, passwordChar, commandChar, statusChar;
+let device;
+let server;
+let service;
+let ssidChar;
+let passwordChar;
+let commandChar;
+let statusChar;
+
 let selectedSsid = "";
+let connectedSsid = "";
 let connectedIp = "";
+
 const networks = new Map();
 
 function showOnly(id) {
-  ["startCard","wifiCard","successCard","errorCard"].forEach(x => $(x).classList.add("hidden"));
+  ["startCard", "wifiCard", "successCard", "errorCard"]
+    .forEach(x => $(x).classList.add("hidden"));
+
   $(id).classList.remove("hidden");
 }
 
@@ -49,8 +60,11 @@ function errorMessage(code) {
     SCAN_FAILED: "Impossible de rechercher les réseaux Wi-Fi.",
     SCAN_TIMEOUT: "La recherche Wi-Fi a expiré.",
     SSID_MISSING: "Aucun réseau Wi-Fi sélectionné.",
+    FORGET_FAILED: "Impossible d’oublier le réseau Wi-Fi.",
+    PASSWORD_ENCODING: "Le mot de passe contient des caractères non pris en charge.",
     INTERNAL: "Erreur interne du Hub."
   };
+
   return map[code] || `Erreur du Hub : ${code}`;
 }
 
@@ -59,9 +73,25 @@ function fail(message) {
   showOnly("errorCard");
 }
 
+function updateSuccessCard() {
+  if (connectedIp) {
+    $("successText").textContent = `${connectedSsid} · ${connectedIp}`;
+  } else {
+    $("successText").textContent = connectedSsid || "Connexion Wi-Fi enregistrée";
+  }
+}
+
+function updateBackButton() {
+  const canGoBack = !!(connectedIp || connectedSsid);
+  $("backToSuccessBtn").classList.toggle("hidden", !canGoBack);
+}
+
 async function connectBluetooth() {
   if (!webBluetoothAvailable()) {
-    fail("Ce navigateur ne prend pas en charge Web Bluetooth. Sur Android, ouvrez cette page avec Chrome.");
+    fail(
+      "Ce navigateur ne prend pas en charge Web Bluetooth. " +
+      "Sur Android, ouvrez cette page avec Chrome."
+    );
     return;
   }
 
@@ -69,7 +99,6 @@ async function connectBluetooth() {
   $("connectBtn").textContent = "RECHERCHE…";
 
   try {
-    // Doit être appelé depuis un clic utilisateur.
     device = await navigator.bluetooth.requestDevice({
       filters: [
         { name: expectedBleName },
@@ -79,7 +108,7 @@ async function connectBluetooth() {
     });
 
     device.addEventListener("gattserverdisconnected", () => {
-      if (!connectedIp) {
+      if (!connectedIp && !connectedSsid) {
         fail("Connexion Bluetooth interrompue.");
       }
     });
@@ -95,10 +124,15 @@ async function connectBluetooth() {
     ]);
 
     await statusChar.startNotifications();
-    statusChar.addEventListener("characteristicvaluechanged", handleStatus);
+    statusChar.addEventListener(
+      "characteristicvaluechanged",
+      handleStatus
+    );
 
     showOnly("wifiCard");
+    updateBackButton();
     await scanWifi();
+
   } catch (err) {
     $("connectBtn").disabled = false;
     $("connectBtn").textContent = "CONNECTER À PEZPO";
@@ -108,6 +142,7 @@ async function connectBluetooth() {
 
 async function writeText(characteristic, text) {
   const bytes = enc.encode(text);
+
   if (characteristic.writeValueWithResponse) {
     await characteristic.writeValueWithResponse(bytes);
   } else {
@@ -118,21 +153,36 @@ async function writeText(characteristic, text) {
 async function scanWifi() {
   networks.clear();
   selectedSsid = "";
+
   $("wifiConnectBtn").disabled = true;
+  $("wifiConnectBtn").textContent = "CONNECTER MON HUB";
   $("networks").innerHTML = "";
   $("scanState").textContent = "Recherche des réseaux Wi-Fi…";
   $("rescanBtn").disabled = true;
+
+  updateBackButton();
+
   try {
     await writeText(commandChar, "scan");
   } catch (err) {
     $("rescanBtn").disabled = false;
-    fail("Impossible de lancer la recherche Wi-Fi : " + (err?.message || err));
+    fail(
+      "Impossible de lancer la recherche Wi-Fi : " +
+      (err?.message || err)
+    );
   }
 }
 
 function handleStatus(event) {
   const view = event.target.value;
-  const raw = dec.decode(view.buffer.slice(view.byteOffset, view.byteOffset + view.byteLength)).trim();
+
+  const raw = dec.decode(
+    view.buffer.slice(
+      view.byteOffset,
+      view.byteOffset + view.byteLength
+    )
+  ).trim();
+
   if (!raw) return;
 
   if (raw === "SCANNING") {
@@ -144,43 +194,97 @@ function handleStatus(event) {
     const parts = raw.split("|");
     const signal = Number(parts[1] || 0);
     const ssid = parts.slice(2).join("|");
+
     if (ssid) {
-      networks.set(ssid, {ssid, signal});
+      networks.set(ssid, { ssid, signal });
       renderNetworks();
     }
+
     return;
   }
 
   if (raw.startsWith("SCAN_DONE|")) {
     $("rescanBtn").disabled = false;
+
     $("scanState").textContent = networks.size
       ? "Choisissez le Wi-Fi de l’établissement."
       : "Aucun réseau trouvé.";
+
     return;
   }
 
   if (raw === "CONNECTING") {
     $("wifiConnectBtn").disabled = true;
     $("wifiConnectBtn").textContent = "CONNEXION…";
+    $("scanState").textContent = "Connexion du Hub au Wi-Fi…";
     return;
   }
 
   if (raw.startsWith("CONNECTED|")) {
     const parts = raw.split("|");
-    selectedSsid = parts[1] || selectedSsid;
+
+    connectedSsid = parts[1] || selectedSsid;
     connectedIp = parts[2] || "";
-    $("successText").textContent = connectedIp
-      ? `${selectedSsid} · ${connectedIp}`
-      : selectedSsid;
+
+    selectedSsid = connectedSsid;
+
+    updateSuccessCard();
+    updateBackButton();
     showOnly("successCard");
+
+    return;
+  }
+
+  if (raw === "FORGETTING") {
+    $("forgetWifiBtn").disabled = true;
+    $("forgetWifiBtn").textContent = "SUPPRESSION…";
+    return;
+  }
+
+  if (raw === "WIFI_FORGOTTEN") {
+    connectedIp = "";
+    connectedSsid = "";
+    selectedSsid = "";
+
+    $("password").value = "";
+    $("forgetWifiBtn").disabled = false;
+    $("forgetWifiBtn").textContent = "OUBLIER CE WI-FI";
+
+    showOnly("wifiCard");
+    updateBackButton();
+    scanWifi();
+
+    return;
+  }
+
+  if (raw === "BUSY") {
+    $("scanState").textContent =
+      "Le Hub termine une opération. Patientez quelques secondes.";
     return;
   }
 
   if (raw.startsWith("ERROR|")) {
     const code = raw.slice("ERROR|".length);
+
     $("wifiConnectBtn").disabled = false;
     $("wifiConnectBtn").textContent = "CONNECTER MON HUB";
+
+    if (!$("forgetWifiBtn").classList.contains("hidden")) {
+      $("forgetWifiBtn").disabled = false;
+      $("forgetWifiBtn").textContent = "OUBLIER CE WI-FI";
+    }
+
     $("scanState").textContent = errorMessage(code);
+
+    if (
+      code === "BAD_PASSWORD" ||
+      code === "CONNECTION_FAILED" ||
+      code === "SSID_MISSING"
+    ) {
+      showOnly("wifiCard");
+      updateBackButton();
+    }
+
     return;
   }
 }
@@ -188,32 +292,49 @@ function handleStatus(event) {
 function renderNetworks() {
   const target = $("networks");
   target.innerHTML = "";
+
   [...networks.values()]
-    .sort((a,b) => b.signal - a.signal)
+    .sort((a, b) => b.signal - a.signal)
     .forEach(n => {
       const label = document.createElement("label");
-      label.className = "network" + (selectedSsid === n.ssid ? " selected" : "");
+
+      label.className =
+        "network" +
+        (selectedSsid === n.ssid ? " selected" : "");
+
       label.innerHTML = `
         <input type="radio" name="wifi" value="">
         <div>
           <strong></strong>
           <small></small>
-        </div>`;
+        </div>
+      `;
+
       label.querySelector("strong").textContent = n.ssid;
       label.querySelector("small").textContent = `${n.signal}%`;
-      label.querySelector("input").checked = selectedSsid === n.ssid;
-      label.querySelector("input").addEventListener("change", () => {
+
+      const input = label.querySelector("input");
+      input.checked = selectedSsid === n.ssid;
+
+      input.addEventListener("change", () => {
         selectedSsid = n.ssid;
-        $("wifiConnectBtn").disabled = !$("password").value;
+
+        $("wifiConnectBtn").disabled =
+          !(selectedSsid && $("password").value);
+
         renderNetworks();
       });
+
       target.appendChild(label);
     });
 }
 
 async function connectWifi() {
   const pwd = $("password").value;
-  if (!selectedSsid || !pwd) return;
+
+  if (!selectedSsid || !pwd) {
+    return;
+  }
 
   $("wifiConnectBtn").disabled = true;
   $("wifiConnectBtn").textContent = "ENVOI…";
@@ -221,30 +342,148 @@ async function connectWifi() {
   try {
     await writeText(ssidChar, selectedSsid);
     await writeText(passwordChar, pwd);
+
+    // Ne pas conserver le mot de passe dans la page.
     $("password").value = "";
+
     await writeText(commandChar, "connect");
+
   } catch (err) {
     $("wifiConnectBtn").disabled = false;
     $("wifiConnectBtn").textContent = "CONNECTER MON HUB";
-    $("scanState").textContent = err?.message || String(err);
+
+    $("scanState").textContent =
+      err?.message || String(err);
   }
 }
 
-$("connectBtn").addEventListener("click", connectBluetooth);
-$("rescanBtn").addEventListener("click", scanWifi);
-$("wifiConnectBtn").addEventListener("click", connectWifi);
+$("connectBtn").addEventListener(
+  "click",
+  connectBluetooth
+);
+
+$("rescanBtn").addEventListener(
+  "click",
+  scanWifi
+);
+
+$("wifiConnectBtn").addEventListener(
+  "click",
+  connectWifi
+);
+
 $("password").addEventListener("input", () => {
-  $("wifiConnectBtn").disabled = !(selectedSsid && $("password").value);
-});
-$("retryBtn").addEventListener("click", () => location.reload());
-
-$("framingBtn").addEventListener("click", () => {
-  if (connectedIp) location.href = `http://${connectedIp}:8088/framing`;
-});
-$("galleryBtn").addEventListener("click", () => {
-  if (connectedIp) location.href = `http://${connectedIp}:8090`;
+  $("wifiConnectBtn").disabled =
+    !(selectedSsid && $("password").value);
 });
 
-// Token lu depuis le QR mais pas encore envoyé au Hub : la vérification côté Hub
-// sera ajoutée après validation du prototype fonctionnel.
-console.log("PEZPO setup loaded", { hub: expectedHubId, ble: expectedBleName, tokenPresent: !!setupToken });
+$("retryBtn").addEventListener(
+  "click",
+  () => location.reload()
+);
+
+$("changeWifiBtn").addEventListener(
+  "click",
+  async () => {
+    selectedSsid = "";
+    $("password").value = "";
+
+    showOnly("wifiCard");
+    updateBackButton();
+
+    await scanWifi();
+  }
+);
+
+$("backToSuccessBtn").addEventListener(
+  "click",
+  () => {
+    if (!connectedSsid && !connectedIp) return;
+
+    updateSuccessCard();
+    showOnly("successCard");
+  }
+);
+
+$("forgetWifiBtn").addEventListener(
+  "click",
+  async () => {
+    const label = connectedSsid
+      ? ` « ${connectedSsid} »`
+      : "";
+
+    const confirmed = confirm(
+      `Oublier le Wi-Fi${label} enregistré sur ce Hub ?`
+    );
+
+    if (!confirmed) {
+      return;
+    }
+
+    $("forgetWifiBtn").disabled = true;
+    $("forgetWifiBtn").textContent = "SUPPRESSION…";
+
+    try {
+      await writeText(
+        commandChar,
+        "forget"
+      );
+
+    } catch (err) {
+      $("forgetWifiBtn").disabled = false;
+      $("forgetWifiBtn").textContent = "OUBLIER CE WI-FI";
+
+      fail(
+        "Impossible d’oublier le Wi-Fi : " +
+        (err?.message || err)
+      );
+    }
+  }
+);
+
+$("framingBtn").addEventListener(
+  "click",
+  () => {
+    if (!connectedIp) {
+      fail(
+        "Adresse du Hub indisponible. " +
+        "Reconnectez le Hub au Wi-Fi puis réessayez."
+      );
+      return;
+    }
+
+    window.open(
+      `http://${connectedIp}:8088/framing`,
+      "_blank",
+      "noopener"
+    );
+  }
+);
+
+$("galleryBtn").addEventListener(
+  "click",
+  () => {
+    if (!connectedIp) {
+      fail(
+        "Adresse du Hub indisponible. " +
+        "Reconnectez le Hub au Wi-Fi puis réessayez."
+      );
+      return;
+    }
+
+    window.open(
+      `http://${connectedIp}:8090/`,
+      "_blank",
+      "noopener"
+    );
+  }
+);
+
+console.log(
+  "PEZPO setup loaded",
+  {
+    hub: expectedHubId,
+    ble: expectedBleName,
+    tokenPresent: !!setupToken
+  }
+);

@@ -22,7 +22,7 @@
 
     <section id="unsupportedCard" class="card hidden">
       <h2>iPhone détecté</h2>
-      <p>Safari sur iPhone ne prend pas en charge Web Bluetooth. Cette même URL servira ensuite à ouvrir l’App Clip PEZPO.</p>
+      <p>Sur iPhone, utilisez le parcours Wi-Fi PEZPO prévu pour l’installation.</p>
     </section>
 
     <section id="startCard" class="card">
@@ -42,20 +42,51 @@
         <h2>Wi-Fi</h2>
         <button id="rescanBtn" class="linkbtn">Actualiser</button>
       </div>
+
       <div id="scanState" class="status">Recherche des réseaux…</div>
       <div id="networks" class="networks"></div>
 
       <label for="password">Mot de passe Wi-Fi</label>
-      <input id="password" type="password" autocomplete="current-password" placeholder="Mot de passe">
-      <button id="wifiConnectBtn" class="primary" disabled>CONNECTER MON HUB</button>
+      <input
+        id="password"
+        type="password"
+        autocomplete="current-password"
+        placeholder="Mot de passe"
+      >
+
+      <button id="wifiConnectBtn" class="primary" disabled>
+        CONNECTER MON HUB
+      </button>
+
+      <button id="backToSuccessBtn" class="secondary hidden">
+        RETOUR À LA CONNEXION ACTUELLE
+      </button>
     </section>
 
     <section id="successCard" class="card hidden center">
       <div class="check">✓</div>
       <h2>PEZPO est connecté</h2>
       <p id="successText"></p>
-      <button id="framingBtn" class="primary">RÉGLER LA CAMÉRA</button>
-      <button id="galleryBtn" class="secondary">OUVRIR LA GALERIE</button>
+
+      <button id="framingBtn" class="primary">
+        RÉGLER LA CAMÉRA
+      </button>
+
+      <button id="galleryBtn" class="secondary">
+        OUVRIR LA GALERIE
+      </button>
+
+      <button id="changeWifiBtn" class="secondary">
+        CHANGER DE WI-FI
+      </button>
+
+      <button id="forgetWifiBtn" class="secondary">
+        OUBLIER CE WI-FI
+      </button>
+
+      <p class="hint">
+        Si le cadrage ou la galerie ne s’ouvre pas, connectez ce téléphone au même Wi-Fi que le Hub.
+      </p>
     </section>
 
     <section id="errorCard" class="card hidden">
@@ -64,8 +95,11 @@
       <button id="retryBtn" class="secondary">RÉESSAYER</button>
     </section>
 
-    <footer>Bluetooth pour l’installation · Wi-Fi pour le cadrage et la galerie</footer>
+    <footer>
+      Bluetooth pour l’installation · Wi-Fi pour le cadrage et la galerie
+    </footer>
   </main>
+
   <script src="app.js"></script>
 </body>
 </html>
