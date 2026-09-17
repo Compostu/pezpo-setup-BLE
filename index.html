@@ -11,13 +11,33 @@
   <main class="shell">
     <header class="brand">
       <div class="mark">P</div>
-      <div>PEZPO</div>
+      <div>
+        <strong>PEZPO</strong>
+        <span>by Compostu</span>
+      </div>
     </header>
 
+    <section id="bleBar" class="ble-bar">
+      <div class="ble-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 3v18l6-5-6-4 6-4-6-5Z"></path>
+          <path d="m6 7 12 9M6 17l12-9"></path>
+        </svg>
+      </div>
+      <div class="ble-copy">
+        <small>Connexion locale</small>
+        <strong id="bleLabel">Bluetooth · PEZPO-HUB2</strong>
+      </div>
+      <span id="bleBadge" class="ble-badge ready">
+        <span class="ble-dot"></span>
+        <span id="bleBadgeText">Prêt</span>
+      </span>
+    </section>
+
     <section class="hero">
-      <div class="eyebrow">INSTALLATION</div>
+      <div class="eyebrow">INSTALLATION PEZPO</div>
       <h1 id="title">Configurer votre Hub</h1>
-      <p id="subtitle">Connexion Bluetooth au Hub PEZPO.</p>
+      <p id="subtitle">Connectez votre téléphone au Hub puis choisissez le Wi-Fi de l’établissement.</p>
     </section>
 
     <section id="unsupportedCard" class="card hidden">
@@ -33,59 +53,129 @@
           <strong id="hubName">PEZPO-HUB</strong>
         </div>
       </div>
-      <button id="connectBtn" class="primary">CONNECTER À PEZPO</button>
-      <p class="hint">Android : Chrome ouvrira le sélecteur Bluetooth du téléphone.</p>
+
+      <button id="connectBtn" class="primary">
+        CONNECTER À PEZPO
+      </button>
+
+      <p class="hint">
+        Chrome Android ouvrira le sélecteur Bluetooth du téléphone.
+      </p>
     </section>
 
     <section id="wifiCard" class="card hidden">
       <div class="row">
-        <h2>Wi-Fi</h2>
+        <div>
+          <span class="section-kicker">ÉTAPE WI-FI</span>
+          <h2>Choisir le réseau</h2>
+        </div>
         <button id="rescanBtn" class="linkbtn">Actualiser</button>
       </div>
 
-      <div id="scanState" class="status">Recherche des réseaux…</div>
+      <div id="scanState" class="status">
+        Recherche des réseaux Wi-Fi…
+      </div>
+
       <div id="networks" class="networks"></div>
 
       <label for="password">Mot de passe Wi-Fi</label>
-      <input
-        id="password"
-        type="password"
-        autocomplete="current-password"
-        placeholder="Mot de passe"
-      >
+
+      <div class="password-wrap">
+        <input
+          id="password"
+          type="password"
+          autocomplete="current-password"
+          placeholder="Mot de passe du réseau"
+        >
+
+        <button
+          id="passwordToggle"
+          class="eye-button"
+          type="button"
+          aria-label="Afficher le mot de passe"
+          title="Afficher le mot de passe"
+        >
+          <svg class="eye-open" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6Z"></path>
+            <circle cx="12" cy="12" r="2.7"></circle>
+          </svg>
+
+          <svg class="eye-closed" viewBox="0 0 24 24" aria-hidden="true">
+            <path d="M3 3l18 18"></path>
+            <path d="M10.6 6.2A8.9 8.9 0 0 1 12 6c6 0 9.5 6 9.5 6a16.5 16.5 0 0 1-3 3.7"></path>
+            <path d="M6.2 6.2C3.8 8 2.5 12 2.5 12s3.5 6 9.5 6a9 9 0 0 0 3.2-.6"></path>
+            <path d="M10.1 10.1a2.7 2.7 0 0 0 3.8 3.8"></path>
+          </svg>
+        </button>
+      </div>
 
       <button id="wifiConnectBtn" class="primary" disabled>
         CONNECTER MON HUB
       </button>
 
       <button id="backToSuccessBtn" class="secondary hidden">
-        RETOUR À LA CONNEXION ACTUELLE
+        RETOUR AU TABLEAU DE BORD
       </button>
     </section>
 
-    <section id="successCard" class="card hidden center">
-      <div class="check">✓</div>
-      <h2>PEZPO est connecté</h2>
-      <p id="successText"></p>
+    <section id="successCard" class="card hidden">
+      <div class="success-head">
+        <div class="check">✓</div>
+        <div>
+          <span class="section-kicker">INSTALLATION CONNECTÉE</span>
+          <h2>Tableau de bord PEZPO</h2>
+        </div>
+      </div>
 
-      <button id="framingBtn" class="primary">
-        RÉGLER LA CAMÉRA
-      </button>
+      <div class="wifi-connected">
+        <div class="wifi-symbol" aria-hidden="true">
+          <svg viewBox="0 0 24 24">
+            <path d="M4 9.5a12.5 12.5 0 0 1 16 0"></path>
+            <path d="M7 13a8 8 0 0 1 10 0"></path>
+            <path d="M10 16.5a3.5 3.5 0 0 1 4 0"></path>
+            <circle cx="12" cy="20" r="1"></circle>
+          </svg>
+        </div>
 
-      <button id="galleryBtn" class="secondary">
-        OUVRIR LA GALERIE
-      </button>
+        <div class="wifi-connected-copy">
+          <small>Wi-Fi connecté</small>
+          <strong id="connectedWifiName">—</strong>
+          <span id="connectedIpText"></span>
+        </div>
 
-      <button id="changeWifiBtn" class="secondary">
-        CHANGER DE WI-FI
-      </button>
+        <span class="connected-pill">
+          <span></span>
+          Connecté
+        </span>
+      </div>
 
-      <button id="forgetWifiBtn" class="secondary">
-        OUBLIER CE WI-FI
-      </button>
+      <p class="dashboard-intro">
+        Le Hub est prêt. Choisissez l’action à effectuer.
+      </p>
 
-      <p class="hint">
-        Si le cadrage ou la galerie ne s’ouvre pas, connectez ce téléphone au même Wi-Fi que le Hub.
+      <div class="dashboard-actions">
+        <button id="framingBtn" class="primary">
+          <span>RÉGLER LA CAMÉRA</span>
+          <span class="arrow">→</span>
+        </button>
+
+        <button id="galleryBtn" class="secondary">
+          <span>OUVRIR LA GALERIE</span>
+          <span class="arrow">→</span>
+        </button>
+
+        <button id="changeWifiBtn" class="secondary">
+          CHANGER DE WI-FI
+        </button>
+
+        <button id="forgetWifiBtn" class="danger-soft">
+          OUBLIER CE WI-FI
+        </button>
+      </div>
+
+      <p class="hint dashboard-hint">
+        Après le cadrage ou la galerie, utilisez le bouton retour du navigateur :
+        vous reviendrez ici.
       </p>
     </section>
 
@@ -96,7 +186,7 @@
     </section>
 
     <footer>
-      Bluetooth pour l’installation · Wi-Fi pour le cadrage et la galerie
+      Installation locale sécurisée · PEZPO
     </footer>
   </main>
 
