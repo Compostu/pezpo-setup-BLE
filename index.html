@@ -888,7 +888,7 @@ body.modal-open{
       </button>
 
       <p class="hint">
-        Chrome Android ouvrira le sélecteur Bluetooth du téléphone.
+        Chrome ouvrira le sélecteur Bluetooth disponible sur cet appareil.
       </p>
     </section>
 
@@ -1247,15 +1247,6 @@ if (isIOS() && !webBluetoothAvailable()) {
   $("connectBtn").disabled = true;
 }
 
-if (!isAndroid() && !isIOS()) {
-  $("connectBtn").disabled = true;
-  $("connectBtn").textContent = "OUVRIR SUR ANDROID";
-  const hint = document.querySelector("#startCard .hint");
-  if (hint) {
-    hint.textContent = "Le provisioning Bluetooth BUDDY est prévu pour Chrome sur Android.";
-  }
-  setBleStatus("ready", "Android requis");
-}
 
 function errorMessage(code) {
   const map = {
