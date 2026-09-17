@@ -17,9 +17,7 @@ Le navigateur ouvre son sélecteur Bluetooth, puis la page dialogue en BLE avec 
 
 ## iPhone
 
-Safari iOS n'expose pas Web Bluetooth. La même URL HTTPS sera utilisée plus tard
-comme invocation URL d'un App Clip PEZPO.
-
+Safari iOS n'expose pas Web Bluetooth.
 ## Important
 
 - HTTPS obligatoire pour Web Bluetooth.
