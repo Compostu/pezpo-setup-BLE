@@ -576,6 +576,12 @@ label[for="password"]{
   line-height:1.45;
 }
 
+.hint-link{
+  color:var(--green);
+  text-decoration:underline;
+  white-space:nowrap;
+}
+
 .dashboard-hint{
   padding-top:4px;
 }
@@ -984,6 +990,11 @@ body.modal-open{
 
       <p id="restoredNote" class="hint hidden"></p>
 
+      <p id="addrLine" class="hint hidden">
+        <span id="addrText"></span>
+        <a href="#" id="addrModeLink" class="hint-link"></a>
+      </p>
+
       <div class="dashboard-actions">
         <button id="framingBtn" class="primary">
           <span>RÉGLER LA CAMÉRA</span>
@@ -1155,6 +1166,8 @@ let statusChar;
 let selectedSsid = "";
 let connectedSsid = "";
 let connectedIp = "";
+let connectedHost = "";   // nom mDNS du hub (sans ".local"), envoyé par le hub
+let preferIp = false;     // repli manuel : utiliser l'IP au lieu du nom
 
 const networks = new Map();
 
@@ -1208,6 +1221,8 @@ function saveDashboardState() {
       JSON.stringify({
         connectedSsid,
         connectedIp,
+        connectedHost,
+        preferIp,
         view: "success",
         savedAt: Date.now()
       })
@@ -1264,6 +1279,8 @@ function restoreDashboardState() {
 
     connectedSsid = saved.connectedSsid || "";
     connectedIp = saved.connectedIp || "";
+    connectedHost = saved.connectedHost || "";
+    preferIp = !!saved.preferIp;
 
     if (!connectedSsid && !connectedIp) {
       return false;
@@ -1313,12 +1330,39 @@ function fail(message) {
   showOnly("errorCard");
 }
 
+// Adresse de base utilisée pour ouvrir cadrage et galerie :
+// le nom .local (stable si l'IP change), sinon l'IP.
+function hubBase() {
+  if (connectedHost && !(preferIp && connectedIp)) {
+    return `${connectedHost}.local`;
+  }
+  return connectedIp;
+}
+
+function updateAddrLine() {
+  const line = $("addrLine");
+  if (!line) return;
+
+  if (!connectedHost || !connectedIp) {
+    line.classList.add("hidden");
+    return;
+  }
+
+  $("addrText").textContent = `Adresse utilisée : ${hubBase()}.`;
+  $("addrModeLink").textContent = preferIp
+    ? "Utiliser le nom"
+    : "Ne s'ouvre pas ? Utiliser l'IP";
+  line.classList.remove("hidden");
+}
+
 function updateSuccessCard() {
   $("connectedWifiName").textContent =
     connectedSsid || "Wi-Fi configuré";
 
   $("connectedIpText").textContent =
     connectedIp ? `Hub · ${connectedIp}` : "";
+
+  updateAddrLine();
 }
 
 function updateBackButton() {
@@ -1558,6 +1602,19 @@ function handleStatus(event) {
     return;
   }
 
+  if (raw.startsWith("HOST|")) {
+    const host = raw.slice("HOST|".length).replace(/\.local$/i, "").trim();
+
+    // Nom d'hôte valide uniquement (pas de caractères spéciaux dans l'URL)
+    connectedHost = /^[A-Za-z0-9-]{1,63}$/.test(host) ? host : "";
+
+    if (connectedIp || connectedSsid) {
+      updateSuccessCard();
+      saveDashboardState();
+    }
+    return;
+  }
+
   if (raw.startsWith("CONNECTED|")) {
     const parts = raw.split("|");
 
@@ -1584,6 +1641,8 @@ function handleStatus(event) {
 
   if (raw === "WIFI_FORGOTTEN") {
     connectedIp = "";
+    connectedHost = "";
+    preferIp = false;
     connectedSsid = "";
     selectedSsid = "";
 
@@ -1889,10 +1948,17 @@ $("forgetModalConfirm").addEventListener(
   Avant de partir, on mémorise le tableau de bord.
   Avec Retour dans Chrome, le tableau de bord BUDDY est restauré.
 */
+$("addrModeLink").addEventListener("click", event => {
+  event.preventDefault();
+  preferIp = !preferIp;
+  saveDashboardState();
+  updateAddrLine();
+});
+
 $("framingBtn").addEventListener(
   "click",
   () => {
-    if (!connectedIp) {
+    if (!hubBase()) {
       fail(
         "Adresse du Hub indisponible. " +
         "Reconnectez le Hub au Wi-Fi puis réessayez."
@@ -1902,14 +1968,14 @@ $("framingBtn").addEventListener(
 
     saveDashboardState();
     location.href =
-      `http://${connectedIp}:8088/framing`;
+      `http://${hubBase()}:8088/framing`;
   }
 );
 
 $("galleryBtn").addEventListener(
   "click",
   () => {
-    if (!connectedIp) {
+    if (!hubBase()) {
       fail(
         "Adresse du Hub indisponible. " +
         "Reconnectez le Hub au Wi-Fi puis réessayez."
@@ -1919,7 +1985,7 @@ $("galleryBtn").addEventListener(
 
     saveDashboardState();
     location.href =
-      `http://${connectedIp}:8090/`;
+      `http://${hubBase()}:8090/`;
   }
 );
 
