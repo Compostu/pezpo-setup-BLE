@@ -982,6 +982,8 @@ body.modal-open{
         Le Hub est prêt. Choisissez l’action à effectuer.
       </p>
 
+      <p id="restoredNote" class="hint hidden"></p>
+
       <div class="dashboard-actions">
         <button id="framingBtn" class="primary">
           <span>RÉGLER LA CAMÉRA</span>
@@ -1192,31 +1194,71 @@ function bleConnected() {
   );
 }
 
+// État mémorisé par Hub dans localStorage : il survit à la fermeture de l'onglet,
+// donc un nouveau scan du QR code rouvre directement le tableau de bord.
+const STORAGE_KEY_HUB = `${STORAGE_KEY}:${expectedHubId}`;
+const STORAGE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 jours
+
 function saveDashboardState() {
   if (!connectedSsid && !connectedIp) return;
 
-  sessionStorage.setItem(
-    STORAGE_KEY,
-    JSON.stringify({
-      connectedSsid,
-      connectedIp,
-      view: "success"
-    })
-  );
+  try {
+    localStorage.setItem(
+      STORAGE_KEY_HUB,
+      JSON.stringify({
+        connectedSsid,
+        connectedIp,
+        view: "success",
+        savedAt: Date.now()
+      })
+    );
+  } catch (_) {}
 }
 
 function clearDashboardState() {
-  sessionStorage.removeItem(STORAGE_KEY);
+  try {
+    localStorage.removeItem(STORAGE_KEY_HUB);
+    sessionStorage.removeItem(STORAGE_KEY); // ancien emplacement
+  } catch (_) {}
+}
+
+function showRestoredNote(savedAt) {
+  const note = $("restoredNote");
+  if (!note) return;
+
+  if (!savedAt) {
+    note.classList.add("hidden");
+    return;
+  }
+
+  const when = new Date(savedAt).toLocaleString("fr-FR", {
+    day: "2-digit",
+    month: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit"
+  });
+
+  note.textContent =
+    `Dernière connexion du Hub : ${when}. ` +
+    "Si le Hub ne répond pas (Wi-Fi ou adresse modifiés), " +
+    "utilisez « Changer de Wi-Fi ».";
+
+  note.classList.remove("hidden");
 }
 
 function restoreDashboardState() {
   try {
-    const raw = sessionStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY_HUB);
     if (!raw) return false;
 
     const saved = JSON.parse(raw);
 
     if (!saved || saved.view !== "success") {
+      return false;
+    }
+
+    if (saved.savedAt && Date.now() - saved.savedAt > STORAGE_MAX_AGE_MS) {
+      clearDashboardState();
       return false;
     }
 
@@ -1229,6 +1271,8 @@ function restoreDashboardState() {
 
     updateSuccessCard();
     showOnly("successCard");
+    showRestoredNote(saved.savedAt);
+    updateBackButton();
 
     setBleStatus(
       "restored",
@@ -1525,6 +1569,7 @@ function handleStatus(event) {
     updateSuccessCard();
     saveDashboardState();
     updateBackButton();
+    showRestoredNote(0);
 
     showOnly("successCard");
     return;
